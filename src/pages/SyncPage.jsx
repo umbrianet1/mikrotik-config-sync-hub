@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Sync, Construction } from 'lucide-react';
+import { RefreshCw, Construction } from 'lucide-react';
 
 const SyncPage = () => {
   return (
