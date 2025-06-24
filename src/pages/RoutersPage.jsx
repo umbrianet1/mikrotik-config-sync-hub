@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Button } from '@/components/ui/button';
@@ -17,24 +16,52 @@ import {
   TestTube
 } from 'lucide-react';
 import RouterForm from '../components/Routers/RouterForm';
-import { addRouter, deleteRouter, updateConnectionStatus, setRouterAsMaster } from '../store/slices/routersSlice';
+import { 
+  fetchRouters,
+  addRouterAsync,
+  deleteRouterAsync,
+  updateConnectionStatus,
+  setRouterAsMasterAsync
+} from '../store/slices/routersSlice';
 import { routerAPI } from '../services/routerAPI';
 
 const RoutersPage = () => {
   const dispatch = useDispatch();
-  const { routers, connectionStatus, loading } = useSelector(state => state.routers);
+  const { routers, connectionStatus, loading, error } = useSelector(state => state.routers);
   const [showForm, setShowForm] = useState(false);
   const [editingRouter, setEditingRouter] = useState(null);
   const [testingConnections, setTestingConnections] = useState(new Set());
 
-  const handleAddRouter = (routerData) => {
-    dispatch(addRouter(routerData));
-    setShowForm(false);
+  // Carica i router da PocketBase al mount
+  useEffect(() => {
+    dispatch(fetchRouters());
+  }, [dispatch]);
+
+  const handleAddRouter = async (routerData) => {
+    try {
+      await dispatch(addRouterAsync(routerData)).unwrap();
+      setShowForm(false);
+      setEditingRouter(null);
+    } catch (error) {
+      console.error('Errore aggiunta router:', error);
+    }
   };
 
-  const handleDeleteRouter = (routerId) => {
+  const handleDeleteRouter = async (routerId) => {
     if (confirm('Sei sicuro di voler eliminare questo router?')) {
-      dispatch(deleteRouter(routerId));
+      try {
+        await dispatch(deleteRouterAsync(routerId)).unwrap();
+      } catch (error) {
+        console.error('Errore eliminazione router:', error);
+      }
+    }
+  };
+
+  const handleSetAsMaster = async (routerId) => {
+    try {
+      await dispatch(setRouterAsMasterAsync(routerId)).unwrap();
+    } catch (error) {
+      console.error('Errore impostazione master:', error);
     }
   };
 
@@ -61,10 +88,6 @@ const RoutersPage = () => {
     }
   };
 
-  const handleSetAsMaster = (routerId) => {
-    dispatch(setRouterAsMaster(routerId));
-  };
-
   // Test connections on component mount
   useEffect(() => {
     routers.forEach(router => {
@@ -76,12 +99,18 @@ const RoutersPage = () => {
 
   return (
     <div className="space-y-6">
+      {error && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+          Errore: {error}
+        </div>
+      )}
+      
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Gestione Router</h1>
           <p className="text-gray-600">Configura e monitora i router MikroTik</p>
         </div>
-        <Button onClick={() => setShowForm(true)}>
+        <Button onClick={() => setShowForm(true)} disabled={loading}>
           <Plus className="w-4 h-4 mr-2" />
           Aggiungi Router
         </Button>
@@ -90,12 +119,24 @@ const RoutersPage = () => {
       {showForm && (
         <RouterForm
           onSubmit={handleAddRouter}
-          onCancel={() => setShowForm(false)}
+          onCancel={() => {
+            setShowForm(false);
+            setEditingRouter(null);
+          }}
           router={editingRouter}
         />
       )}
 
-      {routers.length === 0 ? (
+      {loading && routers.length === 0 ? (
+        <Card>
+          <CardContent className="flex items-center justify-center py-12">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-4"></div>
+              <p>Caricamento router...</p>
+            </div>
+          </CardContent>
+        </Card>
+      ) : routers.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
             <Router className="w-16 h-16 text-gray-300 mb-4" />
