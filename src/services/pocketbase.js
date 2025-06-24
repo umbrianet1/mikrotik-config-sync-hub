@@ -4,6 +4,11 @@ import PocketBase from 'pocketbase';
 // Configura l'URL del tuo server PocketBase
 const PB_URL = 'http://localhost:8090'; // Cambia questo con l'URL del tuo server PocketBase
 
+// URL del backend Node.js per le connessioni ai router
+export const BACKEND_URL = process.env.NODE_ENV === 'production' 
+  ? 'https://your-server-ip:3001' // Sostituisci con l'IP del tuo server Ubuntu
+  : 'http://localhost:3001';
+
 export const pb = new PocketBase(PB_URL);
 
 // Configurazione delle collezioni

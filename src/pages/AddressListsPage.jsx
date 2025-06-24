@@ -1,10 +1,10 @@
-
 import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { useToast } from "@/hooks/use-toast";
 import { 
   List, 
   Plus, 
@@ -13,13 +13,16 @@ import {
   Eye,
   Edit,
   Trash2,
-  RefreshCw
+  RefreshCw,
+  AlertCircle
 } from 'lucide-react';
-import { setAddressLists, setFilters } from '../store/slices/addressListsSlice';
+import { setAddressLists, setFilters, setLoading } from '../store/slices/addressListsSlice';
 import { routerAPI } from '../services/routerAPI';
+import ConnectionStatus from '../components/Common/ConnectionStatus';
 
 const AddressListsPage = () => {
   const dispatch = useDispatch();
+  const { toast } = useToast();
   const { routers } = useSelector(state => state.routers);
   const { addressLists, filters, loading } = useSelector(state => state.addressLists);
   const [selectedRouter, setSelectedRouter] = useState(null);
@@ -28,10 +31,23 @@ const AddressListsPage = () => {
     if (!router) return;
     
     try {
+      dispatch(setLoading(true));
       const lists = await routerAPI.fetchAddressLists(router);
       dispatch(setAddressLists({ routerId: router.id, lists }));
+      
+      toast({
+        title: "Dati aggiornati",
+        description: `Address lists caricate da ${router.name}`,
+      });
     } catch (error) {
       console.error('Errore nel caricamento address lists:', error);
+      toast({
+        title: "Errore",
+        description: `Impossibile caricare i dati da ${router.name}: ${error.message}`,
+        variant: "destructive",
+      });
+    } finally {
+      dispatch(setLoading(false));
     }
   };
 
@@ -63,9 +79,14 @@ const AddressListsPage = () => {
           <h1 className="text-3xl font-bold text-gray-900">Address Lists</h1>
           <p className="text-gray-600">Gestione centralizzata degli indirizzi IP</p>
         </div>
-        <div className="flex space-x-3">
-          <Button variant="outline" onClick={() => selectedRouter && handleRefreshData(selectedRouter)}>
-            <RefreshCw className="w-4 h-4 mr-2" />
+        <div className="flex items-center space-x-3">
+          <ConnectionStatus />
+          <Button 
+            variant="outline" 
+            onClick={() => selectedRouter && handleRefreshData(selectedRouter)}
+            disabled={loading}
+          >
+            <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
             Aggiorna
           </Button>
           <Button>
@@ -79,6 +100,9 @@ const AddressListsPage = () => {
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">Seleziona Router</CardTitle>
+          <CardDescription>
+            Scegli il router da cui recuperare le address lists
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex flex-wrap gap-2">
@@ -94,6 +118,12 @@ const AddressListsPage = () => {
               </Button>
             ))}
           </div>
+          {routers.length === 0 && (
+            <div className="flex items-center space-x-2 text-amber-600">
+              <AlertCircle className="w-4 h-4" />
+              <span>Nessun router configurato. Vai alla sezione Router per aggiungerne uno.</span>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -146,12 +176,45 @@ const AddressListsPage = () => {
               )}
             </div>
             <div className="text-sm text-gray-500">
-              {filteredLists.length} di {currentLists.length} elementi
+              {loading ? (
+                <div className="text-center py-12">
+                  <RefreshCw className="w-16 h-16 text-gray-300 mx-auto mb-4 animate-spin" />
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                    Caricamento in corso...
+                  </h3>
+                  <p className="text-gray-600">
+                    Recupero dati dal router {selectedRouter?.name}
+                  </p>
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <List className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                    Nessuna address list trovata
+                  </h3>
+                  <p className="text-gray-600">
+                    {currentLists.length === 0 
+                      ? 'Nessuna address list configurata su questo router'
+                      : 'Nessun elemento corrisponde ai filtri impostati'
+                    }
+                  </p>
+                </div>
+              )}
             </div>
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {filteredLists.length === 0 ? (
+          {loading ? (
+            <div className="text-center py-12">
+              <RefreshCw className="w-16 h-16 text-gray-300 mx-auto mb-4 animate-spin" />
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                Caricamento in corso...
+              </h3>
+              <p className="text-gray-600">
+                Recupero dati dal router {selectedRouter?.name}
+              </p>
+            </div>
+          ) : filteredLists.length === 0 ? (
             <div className="text-center py-12">
               <List className="w-16 h-16 text-gray-300 mx-auto mb-4" />
               <h3 className="text-lg font-semibold text-gray-900 mb-2">
