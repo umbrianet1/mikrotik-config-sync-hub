@@ -20,6 +20,10 @@ const LoginForm = () => {
     dispatch(loginStart());
     try {
       const user = await authAPI.login(data);
+      
+      // Salva i dati utente localmente
+      localStorage.setItem('mikrotik_user', JSON.stringify(user));
+      
       dispatch(loginSuccess(user));
     } catch (error) {
       dispatch(loginFailure(error.message));
@@ -102,6 +106,9 @@ const LoginForm = () => {
             <div className="text-sm text-gray-600 space-y-1">
               <div><strong>Username:</strong> admin</div>
               <div><strong>Password:</strong> admin123</div>
+            </div>
+            <div className="mt-2 text-xs text-blue-600">
+              ℹ️ Sistema in modalità locale (PocketBase non disponibile)
             </div>
           </div>
         </CardContent>
