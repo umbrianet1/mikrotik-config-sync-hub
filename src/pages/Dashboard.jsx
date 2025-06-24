@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,7 +7,7 @@ import {
   Router, 
   List, 
   Shield, 
-  Sync, 
+  RefreshCw, 
   CheckCircle, 
   XCircle, 
   Clock,
@@ -63,7 +62,7 @@ const Dashboard = () => {
     {
       title: 'Sincronizzazioni',
       value: syncOperations.length,
-      icon: Sync,
+      icon: RefreshCw,
       color: 'text-indigo-600',
       bgColor: 'bg-indigo-100',
     },
@@ -79,7 +78,7 @@ const Dashboard = () => {
         <div className="flex space-x-3">
           <Button asChild>
             <Link to="/sync">
-              <Sync className="w-4 h-4 mr-2" />
+              <RefreshCw className="w-4 h-4 mr-2" />
               Avvia Sync
             </Link>
           </Button>
@@ -243,7 +242,7 @@ const Dashboard = () => {
             
             <Button asChild variant="outline" className="h-auto p-4">
               <Link to="/sync" className="flex flex-col items-center space-y-2">
-                <Sync className="w-8 h-8" />
+                <RefreshCw className="w-8 h-8" />
                 <div className="text-center">
                   <div className="font-medium">Sincronizza</div>
                   <div className="text-sm text-gray-500">Sync configurazioni</div>
