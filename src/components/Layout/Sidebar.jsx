@@ -6,7 +6,7 @@ import {
   Router, 
   List, 
   Shield, 
-  Sync, 
+  RefreshCw, 
   Archive,
   Users,
   BarChart3
@@ -39,7 +39,7 @@ const menuItems = [
   },
   { 
     path: '/sync', 
-    icon: Sync, 
+    icon: RefreshCw, 
     label: 'Sincronizzazione',
     description: 'Sync configurazioni'
   },
