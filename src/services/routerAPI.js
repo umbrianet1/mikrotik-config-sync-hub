@@ -1,21 +1,34 @@
 
 import { pb, COLLECTIONS, handlePocketBaseError } from './pocketbase';
-import { Client } from 'ssh2';
-import { RouterOSAPI } from 'node-routeros';
 
 export const routerAPI = {
-  // Test di connessione reale al router
+  // Test di connessione simulato (per frontend)
   testConnection: async (router) => {
     try {
+      console.log('Testing connection to router:', router.name, router.ip);
       const startTime = Date.now();
       
-      if (router.connectionMethod === 'SSH') {
-        return await testSSHConnection(router);
-      } else if (router.connectionMethod === 'API_REST') {
-        return await testAPIConnection(router);
-      }
+      // Simula una connessione con un piccolo delay
+      await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 2000));
       
-      throw new Error('Metodo di connessione non supportato');
+      const latency = Date.now() - startTime;
+      const isReachable = Math.random() > 0.3; // 70% di successo per il test
+      
+      if (isReachable) {
+        return {
+          success: true,
+          status: 'online',
+          message: `Connessione ${router.connectionMethod} simulata riuscita`,
+          latency
+        };
+      } else {
+        return {
+          success: false,
+          status: 'offline',
+          message: 'Router non raggiungibile (simulazione)',
+          latency: null
+        };
+      }
     } catch (error) {
       console.error('Connection test failed:', error);
       return {
@@ -27,15 +40,23 @@ export const routerAPI = {
     }
   },
 
-  // Informazioni del router tramite API
+  // Informazioni del router simulate
   getRouterInfo: async (router) => {
     try {
-      if (router.connectionMethod === 'API_REST') {
-        return await getRouterInfoAPI(router);
-      } else if (router.connectionMethod === 'SSH') {
-        return await getRouterInfoSSH(router);
-      }
-      throw new Error('Metodo di connessione non supportato');
+      console.log('Getting router info for:', router.name);
+      
+      // Simula ritardo di rete
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      return {
+        identity: router.name,
+        version: '7.8.2',
+        architecture: 'x86_64',
+        uptime: `${Math.floor(Math.random() * 30)}d ${Math.floor(Math.random() * 24)}h`,
+        cpu: Math.floor(Math.random() * 50) + 10,
+        memory: Math.floor(Math.random() * 40) + 20,
+        connectionMethod: router.connectionMethod
+      };
     } catch (error) {
       handlePocketBaseError(error);
     }
@@ -44,6 +65,8 @@ export const routerAPI = {
   // Gestione Address Lists
   fetchAddressLists: async (router) => {
     try {
+      console.log('Fetching address lists for router:', router.id);
+      
       // Prima controlla se ci sono dati salvati in PocketBase
       const savedLists = await pb.collection(COLLECTIONS.ADDRESS_LISTS)
         .getList(1, 50, {
@@ -60,21 +83,40 @@ export const routerAPI = {
         }));
       }
 
-      // Se non ci sono dati salvati, recupera dal router
-      const routerLists = await fetchAddressListsFromRouter(router);
+      // Se non ci sono dati salvati, crea alcuni dati di esempio
+      const exampleLists = [
+        {
+          id: `temp_${Date.now()}_1`,
+          list: 'blocked_ips',
+          address: '192.168.1.100',
+          comment: 'IP bloccato automaticamente',
+          timeout: '1d'
+        },
+        {
+          id: `temp_${Date.now()}_2`,
+          list: 'whitelist',
+          address: '192.168.1.0/24',
+          comment: 'Rete locale sicura',
+          timeout: ''
+        }
+      ];
       
-      // Salva in PocketBase per cache
-      for (const list of routerLists) {
-        await pb.collection(COLLECTIONS.ADDRESS_LISTS).create({
-          router_id: router.id,
-          list_name: list.list,
-          address: list.address,
-          comment: list.comment,
-          timeout: list.timeout
-        });
+      // Salva gli esempi in PocketBase per la cache
+      for (const list of exampleLists) {
+        try {
+          await pb.collection(COLLECTIONS.ADDRESS_LISTS).create({
+            router_id: router.id,
+            list_name: list.list,
+            address: list.address,
+            comment: list.comment,
+            timeout: list.timeout
+          });
+        } catch (error) {
+          console.warn('Could not save example address list:', error);
+        }
       }
 
-      return routerLists;
+      return exampleLists;
     } catch (error) {
       handlePocketBaseError(error);
     }
@@ -82,6 +124,8 @@ export const routerAPI = {
 
   fetchFirewallRules: async (router) => {
     try {
+      console.log('Fetching firewall rules for router:', router.id);
+      
       const savedRules = await pb.collection(COLLECTIONS.FIREWALL_RULES)
         .getList(1, 50, {
           filter: `router_id = "${router.id}"`
@@ -100,22 +144,49 @@ export const routerAPI = {
         }));
       }
 
-      const routerRules = await fetchFirewallRulesFromRouter(router);
+      // Crea regole di esempio
+      const exampleRules = [
+        {
+          id: `temp_${Date.now()}_1`,
+          chain: 'input',
+          action: 'accept',
+          srcAddress: '192.168.1.0/24',
+          dstPort: '22',
+          protocol: 'tcp',
+          comment: 'SSH dalla rete locale',
+          disabled: false
+        },
+        {
+          id: `temp_${Date.now()}_2`,
+          chain: 'forward',
+          action: 'drop',
+          srcAddress: '0.0.0.0/0',
+          dstPort: '23',
+          protocol: 'tcp',
+          comment: 'Blocca Telnet',
+          disabled: false
+        }
+      ];
       
-      for (const rule of routerRules) {
-        await pb.collection(COLLECTIONS.FIREWALL_RULES).create({
-          router_id: router.id,
-          chain: rule.chain,
-          action: rule.action,
-          src_address: rule.srcAddress,
-          dst_port: rule.dstPort,
-          protocol: rule.protocol,
-          comment: rule.comment,
-          disabled: rule.disabled
-        });
+      // Salva le regole di esempio
+      for (const rule of exampleRules) {
+        try {
+          await pb.collection(COLLECTIONS.FIREWALL_RULES).create({
+            router_id: router.id,
+            chain: rule.chain,
+            action: rule.action,
+            src_address: rule.srcAddress,
+            dst_port: rule.dstPort,
+            protocol: rule.protocol,
+            comment: rule.comment,
+            disabled: rule.disabled
+          });
+        } catch (error) {
+          console.warn('Could not save example firewall rule:', error);
+        }
       }
 
-      return routerRules;
+      return exampleRules;
     } catch (error) {
       handlePocketBaseError(error);
     }
@@ -123,6 +194,8 @@ export const routerAPI = {
 
   createAddressList: async (router, addressList) => {
     try {
+      console.log('Creating address list:', addressList);
+      
       // Crea in PocketBase
       const record = await pb.collection(COLLECTIONS.ADDRESS_LISTS).create({
         router_id: router.id,
@@ -132,8 +205,8 @@ export const routerAPI = {
         timeout: addressList.timeout
       });
 
-      // Applica al router
-      await applyAddressListToRouter(router, addressList);
+      // Log simulazione applicazione al router
+      console.log('Simulando applicazione address list al router:', router.name, addressList);
 
       return {
         id: record.id,
@@ -149,6 +222,8 @@ export const routerAPI = {
 
   updateAddressList: async (router, addressList) => {
     try {
+      console.log('Updating address list:', addressList);
+      
       const record = await pb.collection(COLLECTIONS.ADDRESS_LISTS).update(addressList.id, {
         list_name: addressList.list,
         address: addressList.address,
@@ -156,7 +231,7 @@ export const routerAPI = {
         timeout: addressList.timeout
       });
 
-      await applyAddressListToRouter(router, addressList);
+      console.log('Simulando aggiornamento address list sul router:', router.name, addressList);
 
       return {
         id: record.id,
@@ -172,9 +247,12 @@ export const routerAPI = {
 
   deleteAddressList: async (router, addressListId) => {
     try {
+      console.log('Deleting address list:', addressListId);
+      
       const record = await pb.collection(COLLECTIONS.ADDRESS_LISTS).getOne(addressListId);
       
-      await removeAddressListFromRouter(router, record);
+      console.log('Simulando rimozione address list dal router:', router.name, record);
+      
       await pb.collection(COLLECTIONS.ADDRESS_LISTS).delete(addressListId);
 
       return { success: true };
@@ -185,6 +263,8 @@ export const routerAPI = {
 
   createFirewallRule: async (router, rule) => {
     try {
+      console.log('Creating firewall rule:', rule);
+      
       const record = await pb.collection(COLLECTIONS.FIREWALL_RULES).create({
         router_id: router.id,
         chain: rule.chain,
@@ -196,7 +276,7 @@ export const routerAPI = {
         disabled: rule.disabled
       });
 
-      await applyFirewallRuleToRouter(router, rule);
+      console.log('Simulando applicazione regola firewall al router:', router.name, rule);
 
       return {
         id: record.id,
@@ -215,6 +295,8 @@ export const routerAPI = {
 
   updateFirewallRule: async (router, rule) => {
     try {
+      console.log('Updating firewall rule:', rule);
+      
       const record = await pb.collection(COLLECTIONS.FIREWALL_RULES).update(rule.id, {
         chain: rule.chain,
         action: rule.action,
@@ -225,7 +307,7 @@ export const routerAPI = {
         disabled: rule.disabled
       });
 
-      await applyFirewallRuleToRouter(router, rule);
+      console.log('Simulando aggiornamento regola firewall sul router:', router.name, rule);
 
       return rule;
     } catch (error) {
@@ -235,9 +317,12 @@ export const routerAPI = {
 
   deleteFirewallRule: async (router, ruleId) => {
     try {
+      console.log('Deleting firewall rule:', ruleId);
+      
       const record = await pb.collection(COLLECTIONS.FIREWALL_RULES).getOne(ruleId);
       
-      await removeFirewallRuleFromRouter(router, record);
+      console.log('Simulando rimozione regola firewall dal router:', router.name, record);
+      
       await pb.collection(COLLECTIONS.FIREWALL_RULES).delete(ruleId);
 
       return { success: true };
@@ -245,142 +330,4 @@ export const routerAPI = {
       handlePocketBaseError(error);
     }
   }
-};
-
-// Funzioni helper per connessioni SSH
-const testSSHConnection = (router) => {
-  return new Promise((resolve) => {
-    const conn = new Client();
-    const startTime = Date.now();
-    
-    conn.on('ready', () => {
-      const latency = Date.now() - startTime;
-      conn.end();
-      resolve({
-        success: true,
-        status: 'online',
-        message: 'Connessione SSH riuscita',
-        latency
-      });
-    }).on('error', (err) => {
-      resolve({
-        success: false,
-        status: 'offline',
-        message: `Errore SSH: ${err.message}`,
-        latency: null
-      });
-    }).connect({
-      host: router.ip,
-      port: router.port || 22,
-      username: router.username,
-      password: router.password
-    });
-  });
-};
-
-// Funzioni helper per connessioni API
-const testAPIConnection = async (router) => {
-  try {
-    const startTime = Date.now();
-    const api = new RouterOSAPI({
-      host: router.ip,
-      user: router.username,
-      password: router.password,
-      port: router.port || 8728
-    });
-
-    await api.connect();
-    const latency = Date.now() - startTime;
-    await api.close();
-
-    return {
-      success: true,
-      status: 'online',
-      message: 'Connessione API riuscita',
-      latency
-    };
-  } catch (error) {
-    return {
-      success: false,
-      status: 'offline',
-      message: `Errore API: ${error.message}`,
-      latency: null
-    };
-  }
-};
-
-// Funzioni per recuperare dati dal router
-const fetchAddressListsFromRouter = async (router) => {
-  // Implementazione per recuperare address lists dal router MikroTik
-  // Questa è una versione semplificata - andrebbe implementata in base al metodo di connessione
-  return [
-    {
-      id: Date.now(),
-      list: 'blocked_ips',
-      address: '192.168.1.100',
-      comment: 'IP bloccato via API',
-      timeout: '1d'
-    }
-  ];
-};
-
-const getRouterInfoAPI = async (router) => {
-  // Implementazione per ottenere info router via API
-  return {
-    identity: router.name,
-    version: '7.8',
-    architecture: 'x86_64',
-    uptime: 'Recuperato via API',
-    cpu: 15,
-    memory: 25
-  };
-};
-
-const getRouterInfoSSH = async (router) => {
-  // Implementazione per ottenere info router via SSH
-  return {
-    identity: router.name,
-    version: '7.8',
-    architecture: 'x86_64',
-    uptime: 'Recuperato via SSH',
-    cpu: 12,
-    memory: 22
-  };
-};
-
-// Funzioni per applicare modifiche al router
-const applyAddressListToRouter = async (router, addressList) => {
-  console.log('Applicando address list al router:', router.name, addressList);
-  // Implementazione per applicare la address list al router
-};
-
-const removeAddressListFromRouter = async (router, addressList) => {
-  console.log('Rimuovendo address list dal router:', router.name, addressList);
-  // Implementazione per rimuovere la address list dal router
-};
-
-const fetchFirewallRulesFromRouter = async (router) => {
-  // Implementazione per recuperare regole firewall dal router
-  return [
-    {
-      id: Date.now(),
-      chain: 'input',
-      action: 'accept',
-      srcAddress: '192.168.1.0/24',
-      dstPort: '22',
-      protocol: 'tcp',
-      comment: 'Regola recuperata via API',
-      disabled: false
-    }
-  ];
-};
-
-const applyFirewallRuleToRouter = async (router, rule) => {
-  console.log('Applicando regola firewall al router:', router.name, rule);
-  // Implementazione per applicare la regola al router
-};
-
-const removeFirewallRuleFromRouter = async (router, rule) => {
-  console.log('Rimuovendo regola firewall dal router:', router.name, rule);
-  // Implementazione per rimuovere la regola dal router
 };
